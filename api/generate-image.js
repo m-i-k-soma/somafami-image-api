@@ -1,15 +1,28 @@
 export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  let prompt;
   try {
-    // Vercel の Edge Function では req.json() で body を取得
-    const body = await req.json();
-    const prompt = body.prompt;
+    const body = await req.body || "";
+    prompt = body.prompt;
 
     if (!prompt) {
-      return res.status(400).json({ error: "Missing prompt" });
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const text = Buffer.concat(chunks).toString();
+      const json = JSON.parse(text);
+      prompt = json.prompt;
     }
 
+  } catch (e) {
+    return res.status(400).json({ error: "Invalid JSON" });
+  }
+
+  try {
     const response = await fetch(
-      "https://api.stability.ai/v2beta/stable-image/generate/core",
+      "https://api.stability.ai/v2beta/stable-image/generate/ultra",
       {
         method: "POST",
         headers: {
@@ -31,7 +44,9 @@ export default async function handler(req, res) {
     }
 
     res.status(200).json({ image: result.image });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 }
+
