@@ -1,19 +1,29 @@
-// フロント側：画像生成APIを呼び出す関数
-async function generateImage(promptText) {
-  const response = await fetch("/api/generate-image", {
+async function generateImage() {
+  const prompt = document.getElementById("prompt").value;
+
+  const res = await fetch("/api/generate-image", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ prompt: promptText })
+    body: JSON.stringify({ prompt })
   });
 
-  const result = await response.json();
-
-  if (result.error) {
-    console.error(result.error);
-    return null;
+  let data;
+  try {
+    data = await res.json();
+  } catch (e) {
+    alert("サーバーが JSON を返していません（500エラー）");
+    console.error(e);
+    return;
   }
 
-  return result.image; // Base64画像を返す
+  if (!res.ok) {
+    alert("画像生成に失敗しました: " + (data.error || "Unknown error"));
+    return;
+  }
+
+  // 画像表示
+  const imgTag = document.getElementById("result-img");
+  imgTag.src = "data:image/png;base64," + data.image;
 }
