@@ -1,11 +1,15 @@
-// Vercel Serverless Function: /api/generate-image.js
-
 export default async function handler(req, res) {
   try {
-    const { prompt } = req.body;
+    // Vercel の Edge Function では req.json() で body を取得
+    const body = await req.json();
+    const prompt = body.prompt;
+
+    if (!prompt) {
+      return res.status(400).json({ error: "Missing prompt" });
+    }
 
     const response = await fetch(
-      "https://api.stability.ai/v2beta/stable-image/generate/ultra",
+      "https://api.stability.ai/v2beta/stable-image/generate/core",
       {
         method: "POST",
         headers: {
@@ -26,7 +30,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Image generation failed" });
     }
 
-    // Base64 画像を返却
     res.status(200).json({ image: result.image });
   } catch (error) {
     res.status(500).json({ error: error.message });
