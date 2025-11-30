@@ -1,47 +1,34 @@
-import OpenAI from "openai";
+// Vercel Serverless Function: /api/generate-image.js
 
 export default async function handler(req, res) {
-  // CORS 設定（外部からアクセスする場合に必要）
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  // POSTでpromptを受け取る
-  const { prompt } = req.body || {};
-  if (!prompt) {
-    return res.status(400).json({ error: "prompt is required" });
-  }
-
   try {
-    const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    const { prompt } = req.body;
 
-    const result = await client.images.generate({
-      model: "gpt-image-1",
-      prompt,
-      size: "1024x1024",
-      response_format: "b64_json",
-    });
+    const response = await fetch(
+      "https://api.stability.ai/v2beta/stable-image/generate/ultra",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.STABILITY_API_KEY}`,
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          prompt: prompt,
+          output_format: "png"
+        })
+      }
+    );
 
-    const imageBase64 = result.data[0].b64_json;
+    const result = await response.json();
 
-    return res.status(200).json({
-      success: true,
-      prompt,
-      image_base64: imageBase64,
-    });
+    if (!result || !result.image) {
+      return res.status(500).json({ error: "Image generation failed" });
+    }
 
+    // Base64 画像を返却
+    res.status(200).json({ image: result.image });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      error: "Failed to generate image",
-      detail: error.message,
-    });
+    res.status(500).json({ error: error.message });
   }
 }
-
